@@ -1,1 +1,157 @@
 
+# Definir el DataFrame de servicios
+df_servicios = pd.DataFrame({
+    "Clave": ["S1", "S2", "S3"],
+    "Nombre": ["Servicio 1", "Servicio 2", "Servicio 3"],
+    "Costo": [100.0, 200.0, 300.0]
+})
+
+# Funciones de utilidad
+
+def generar_clave_servicio():
+    return 'S' + str(len(df_servicios) + 1)
+
+def agregar_servicio():
+    print("\nAgregar un servicio:")
+    while True:
+        nombre = input("Nombre del servicio: ")
+        if not nombre:
+            print("El nombre no puede quedar vacío.")
+            continue
+        costo = input("Costo del servicio: ")
+        if not costo or float(costo) <= 0.00:
+            print("El costo debe ser superior a 0.00.")
+            continue
+        clave = generar_clave_servicio()
+        df_servicios.loc[len(df_servicios)] = [clave, nombre, float(costo)]
+        print(f"Servicio '{nombre}' agregado con éxito (Clave: {clave}).")
+        break
+
+def buscar_servicio_por_clave():
+    clave = input("Ingrese la clave del servicio a buscar: ")
+    servicio = df_servicios[df_servicios["Clave"] == clave]
+    if servicio.empty:
+        print("No se encontró ningún servicio con esa clave.")
+    else:
+        print(servicio)
+
+def buscar_servicio_por_nombre():
+    nombre = input("Ingrese el nombre del servicio a buscar (ignora mayúsculas/minúsculas): ")
+    servicios = df_servicios[df_servicios["Nombre"].str.lower() == nombre.lower()]
+    if servicios.empty:
+        print("No se encontró ningún servicio con ese nombre.")
+    else:
+        print(servicios)
+
+def listado_de_servicios_ordenado_por_clave():
+    servicios = df_servicios.sort_values(by="Clave")
+    print(servicios)
+
+def listado_de_servicios_ordenado_por_nombre():
+    servicios = df_servicios.sort_values(by="Nombre")
+    print(servicios)
+
+def exportar_reporte_servicios(dataframe, ordenado_por, formato):
+    fecha_emision = datetime.now().strftime("%m_%d_%Y")
+    nombre_archivo = f"ReporteServiciosPor{ordenado_por}_{fecha_emision}.{formato}"
+    if formato == "csv":
+        dataframe.to_csv(nombre_archivo, index=False)
+    elif formato == "xlsx":
+        writer = pd.ExcelWriter(nombre_archivo, engine='xlsxwriter')
+        dataframe.to_excel(writer, sheet_name='Servicios', index=False)
+        writer.save()
+    print(f"Reporte exportado como '{nombre_archivo}'.")
+
+def menu_servicios():
+    while True:
+        print("\n===== Menú Servicios =====")
+        print("1. Agregar un servicio")
+        print("2. Consultas y reportes de servicios")
+        print("3. Volver al menú principal")
+
+        opcion_menu = input("Seleccione una opción (1/2/3): ")
+
+        if opcion_menu == "1":
+            agregar_servicio()
+        elif opcion_menu == "2":
+            menu_consultas_reportes_servicios()
+        elif opcion_menu == "3":
+            break
+        else:
+            print("Opción no válida.")
+
+def menu_consultas_reportes_servicios():
+    while True:
+        print("\n===== Consultas y Reportes de Servicios =====")
+        print("1. Búsqueda por clave de servicio")
+        print("2. Búsqueda por nombre de servicio")
+        print("3. Listado de servicios")
+        print("4. Volver al menú de servicios")
+
+        opcion_menu = input("Seleccione una opción (1/2/3/4): ")
+
+        if opcion_menu == "1":
+            buscar_servicio_por_clave()
+        elif opcion_menu == "2":
+            buscar_servicio_por_nombre()
+        elif opcion_menu == "3":
+            menu_listado_servicios()
+        elif opcion_menu == "4":
+            break
+        else:
+            print("Opción no válida.")
+
+def menu_listado_servicios():
+    while True:
+        print("\n===== Listado de Servicios =====")
+        print("1. Ordenado por clave")
+        print("2. Ordenado por nombre de servicio")
+        print("3. Volver al menú de consultas y reportes de servicios")
+
+        opcion_menu = input("Seleccione una opción (1/2/3): ")
+
+        if opcion_menu == "1":
+            listado_de_servicios_ordenado_por_clave()
+            exportar_opcion_servicios("clave")
+        elif opcion_menu == "2":
+            listado_de_servicios_ordenado_por_nombre()
+            exportar_opcion_servicios("nombre")
+        elif opcion_menu == "3":
+            break
+        else:
+            print("Opción no válida.")
+
+def exportar_opcion_servicios(ordenado_por):
+    while True:
+        print("\n===== ¿Desea exportar los datos de servicios? =====")
+        print("1. Exportar a CSV")
+        print("2. Exportar a Excel")
+        print("3. No exportar")
+
+        opcion_exportar = input("Seleccione una opción (1/2/3): ")
+
+        if opcion_exportar == "1":
+            exportar_reporte_servicios(df_servicios, ordenado_por, "csv")
+            break
+        elif opcion_exportar == "2":
+            exportar_reporte_servicios(df_servicios, ordenado_por, "xlsx")
+            break
+        elif opcion_exportar == "3":
+            break
+        else:
+            print("Opción no válida.")
+
+# Menú principal
+while True:
+    print("\n===== Menú Principal =====")
+    print("1. Menú Servicios")
+    print("2. Salir")
+
+    opcion_menu = input("Seleccione una opción (1/2): ")
+
+    if opcion_menu == "1":
+        menu_servicios()
+    elif opcion_menu == "2":
+        break
+    else:
+        print("Opción no válida.")
