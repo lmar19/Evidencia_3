@@ -1,18 +1,21 @@
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 import os
-import csv
-import pandas as pd
 import re
+import pandas as pd
 from datetime import datetime
 from openpyxl import Workbook
 
-# Crear un DataFrame vacío con las columnas deseadas
-df = pd.DataFrame(columns=["Folio", "Fecha", "Cliente", "RFC", "Correo", "Monto", "Detalle"])
+# Crear DataFrames vacíos con las columnas deseadas
+df_notas = pd.DataFrame(columns=["Folio", "Fecha", "Cliente", "Monto", "Detalle"])
+df_clientes = pd.DataFrame(columns=["Clave", "Nombre", "RFC", "Correo"])
+df_servicios = pd.DataFrame(columns=["Clave", "Nombre", "Costo"])
+
+# Definir el archivo CSV donde se guardarán los datos
+archivo_csv = "datos.csv"
 
 # Funciones de utilidad
 def generar_folio():
-    folio = len(df) + 1
+    folio = len(df_notas) + 1
     return folio
 
 def validar_rfc(rfc):
@@ -51,7 +54,7 @@ def menu_notas():
             break
         else:
             print("Opción no válida.")
-
+            
 # Menú consulta de notas 1.2
 def menu_consultas():
     while True:
@@ -82,9 +85,9 @@ def menu_clientes():
         opcion_menu = input("Seleccione una opción (1/2/3): ")
 
         if opcion_menu == "1":
-            agregar_cliente() 
+            agregar_cliente()
         elif opcion_menu == "2":
-            menu_consultas_reportes_clientes() 
+            menu_consultas_reportes_clientes()
         elif opcion_menu == "3":
             break
         else:
@@ -100,7 +103,7 @@ def menu_consultas_reportes_clientes():
         print("4. Volver al menú de clientes")
 
         opcion_menu = input("Seleccione una opción (1/2/3/4): ")
-
+        busqueda_por_clave = ""
         if opcion_menu == "1":
             menu_listado_clientes()
         elif opcion_menu == "2":
@@ -123,382 +126,39 @@ def menu_listado_clientes():
         opcion_menu = input("Seleccione una opción (1/2/3): ")
 
         if opcion_menu == "1":
-            df.sort_values("Clave", inplace=True)
+            df_clientes.sort_values("Clave", inplace=True)
             listado_clientes()
-            exportar_opcion()
+            exportar_opcion("clientes")
         elif opcion_menu == "2":
-            df.sort_values("Nombre", inplace=True)
+            df_clientes.sort_values("Nombre", inplace=True)
             listado_clientes()
-            exportar_opcion()
+            exportar_opcion("clientes")
         elif opcion_menu == "3":
             break
         else:
             print("Opción no válida.")
-
-# Menú servicios 3.1
-def menu_servicios():
-    while True:
-        print("\n===== Menú Servicios =====")
-        print("1. Agregar un servicio")
-        print("2. Consultas y reportes de servicios")
-        print("3. Volver al menú principal")
-
-        opcion_menu = input("Seleccione una opción (1/2/3): ")
-
-        if opcion_menu == "1":
-            agregar_servicio() 
-        elif opcion_menu == "2":
-            menu_consultas_reportes_servicios() 
-        elif opcion_menu == "3":
-            break
-        else:
-            print("Opción no válida.")
-
-# Menú de consultas y reportes de servicios 3.2
-def menu_consultas_reportes_servicios():
-    while True:
-        print("\n===== Menú Consultas y Reportes de Servicios =====")
-        print("1. Búsqueda por clave de servicio")
-        print("2. Búsqueda por nombre de servicio")
-        print("3. Listado de servicios")
-        print("4. Volver al menú de servicios")
-
-        opcion_menu = input("Seleccione una opción (1/2/3/4): ")
-
-        if opcion_menu == "1":
-            busqueda_por_clave_servicio()
-        elif opcion_menu == "2":
-            busqueda_por_nombre_servicio()
-        elif opcion_menu == "3":
-            menu_listado_servicios()
-        elif opcion_menu == "4":
-            break
-        else:
-            print("Opción no válida.")
-
-# Menú de listado de servicios 3.3
-def menu_listado_servicios():
-    while True:
-        print("\n===== Menú Listado de Servicios =====")
-        print("1. Ordenado por clave")
-        print("2. Ordenado por nombre de servicio")
-        print("3. Volver al menú de consultas y reportes de servicios")
-
-        opcion_menu = input("Seleccione una opción (1/2/3): ")
-
-        if opcion_menu == "1":
-            ordenado_por_clave()
-        elif opcion_menu == "2":
-            ordenado_por_nombre_servicio()
-        elif opcion_menu == "3":
-            break
-        else:
-            print("Opción no válida.")
-
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#2.1
-
-# Funciones para registrar, cancelar y recuperar notas
-def registrar_nota():
-    # Mostrar los clientes registrados
-    print("Clientes registrados:")
-    print(df_clientes[["Clave", "Nombre"]])
-
-    # Solicitar la clave del cliente
-    clave_cliente = input("Ingrese la clave del cliente al que se expedirá la nota: ")
-
-    # Verificar que el cliente esté registrado
-    if clave_cliente not in df_clientes["Clave"].values:
-        print("El cliente no está registrado.")
-        return
-
-    # Solicitar los servicios que conformarán la nota
-    detalle = []
-    while True:
-        print("Servicios registrados:")
-        print(df_servicios[["Clave", "Nombre", "Costo"]])
-
-        clave_servicio = input("Ingrese la clave del servicio a añadir a la nota (o 'fin' para finalizar): ")
-        if clave_servicio.lower() == "fin":
-            break
-
-        # Verificar que el servicio esté registrado
-        if clave_servicio not in df_servicios["Clave"].values:
-            print("El servicio no está registrado.")
-            continue
-
-        # Añadir el servicio al detalle de la nota
-        servicio = df_servicios[df_servicios["Clave"] == clave_servicio].iloc[0]
-        detalle.append({"Nombre": servicio["Nombre"], "Costo": servicio["Costo"]})
-
-    # Calcular el monto de la nota
-    monto = sum(item["Costo"] for item in detalle)
-
-    # Generar el folio de la nota
-    folio = len(df_notas) + 1
-
-    # Registrar la nota
-    df_notas.loc[len(df_notas)] = [folio, datetime.now(), clave_cliente, monto, detalle]
-    df_notas.to_csv("notas.csv", index=False)
-
-    print("Nota registrada con éxito.")
-
-
-def cancelar_nota():
-    folio_cancelar = input("Ingrese el folio de la nota a cancelar: ")
-    folio_cancelar = int(folio_cancelar)
-
-    nota = df[df["Folio"] == folio_cancelar]
-
-    if nota.empty:
-        print("La nota no existe o ya está cancelada.")
-    else:
-        print("Datos de la nota a cancelar:")
-        print(nota[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Monto"]])
-        print("Detalle de la nota:")
-        print(nota["Detalle"].iloc[0])
-
-        confirmar = input("¿Está seguro de que desea cancelar esta nota? (S/N): ")
-
-        if confirmar.lower() == "s":
-            # Marcar la nota como cancelada
-            df.loc[df["Folio"] == folio_cancelar, "Fecha"] = None
-            df.to_csv(archivo_csv, index=False)
-            print("Nota cancelada con éxito.")
-        else:
-            print("Operación de cancelación cancelada.")
-
-def recuperar_nota():
-    notas_canceladas = df[df["Fecha"].isna()]
-
-    if notas_canceladas.empty:
-        print("No hay notas canceladas para recuperar.")
-    else:
-        print("Notas canceladas:")
-        print(notas_canceladas[["Folio", "Cliente"]])
-
-        folio_recuperar = input("Ingrese el folio de la nota a recuperar o '0' para cancelar: ")
-        folio_recuperar = int(folio_recuperar)
-
-        if folio_recuperar == 0:
-            print("Operación de recuperación cancelada.")
-        else:
-            nota = notas_canceladas[notas_canceladas["Folio"] == folio_recuperar]
-
-            if nota.empty:
-                print("La nota no existe o no está cancelada.")
-            else:
-                print("Datos de la nota a recuperar:")
-                print(nota[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Monto"]])
-                print("Detalle de la nota:")
-                print(nota["Detalle"].iloc[0])
-
-                confirmar = input("¿Está seguro de que desea recuperar esta nota? (S/N): ")
-
-                if confirmar.lower() == "s":
-                    # Restaurar la fecha de la nota (recuperarla)
-                    df.loc[df["Folio"] == folio_recuperar, "Fecha"] = datetime.now()
-                    df.to_csv(archivo_csv, index=False)
-                    print("Nota recuperada con éxito.")
-                else:
-                    print("Operación de recuperación cancelada.")
-
-# Funciones para consultar notas y clientes
-def consultar_por_periodo():
-    fecha_inicial = input("Ingrese la fecha inicial (dd/mm/YYYY): ")
-    fecha_final = input("Ingrese la fecha final (dd/mm/YYYY): ")
-
-    fecha_inicial = datetime.strptime(fecha_inicial, "%d/%m/%Y")
-    fecha_final = datetime.strptime(fecha_final, "%d/%m/%Y")
-
-    # Validar las fechas
-    if fecha_final < fecha_inicial:
-        print("La fecha final debe ser igual o posterior a la fecha inicial.")
-        return
-
-    notas_periodo = df[(df["Fecha"] >= fecha_inicial) & (df["Fecha"] <= fecha_final)]
-
-    if notas_periodo.empty:
-        print("No hay notas emitidas para el período especificado.")
-    else:
-        promedio_monto = notas_periodo["Monto"].mean()
-        print("Notas del período:")
-        notas_periodo["Detalle"] = notas_periodo["Detalle"].apply(lambda x: ', '.join(f'{i["Nombre"]}: {i["Costo"]}' for i in x))
-        notas_str = notas_periodo[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Detalle", "Monto"]].to_string(index=False)
-        notas_str = notas_str.replace('\n', '\n\t')
-        print("\t" + notas_str)
-        print(f"Monto promedio de notas del período: ${round(promedio_monto, 2)}")
-
-def consultar_por_folio():
-    while True:
-        folio_consulta = input("Ingrese el folio de la nota a consultar: ")
-        try:
-            folio_consulta = int(folio_consulta)
-        except ValueError:
-            print("Folio ingresado no válido. Inténtalo de nuevo.")
-            continue
-
-        nota = df[df["Folio"] == folio_consulta]
-
-        if nota.empty:
-            print("La nota no existe o está cancelada.")
-        else:
-            print("Datos de la nota:")
-            nota["Detalle"] = nota["Detalle"].apply(lambda x: ', '.join(f'{i["Nombre"]}: {i["Costo"]}' for i in x))
-            nota_str = nota[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Detalle", "Monto"]].to_string(index=False)
-            nota_str = nota_str.replace('\n', '\n\t')
-            print("\t" + nota_str)
-            break
-
-
-#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-#2.2
-
-def consultar_por_cliente():
-    rfc_clientes = df["RFC"].unique()
-    rfc_clientes.sort()
-
-    for i, rfc in enumerate(rfc_clientes, start=1):
-        print(f"{i}. RFC: {rfc}")
-
-    seleccion = int(input("Seleccione el número del cliente a consultar: "))
-
-    if seleccion < 1 or seleccion > len(rfc_clientes):
-        print("Selección no válida.")
-        return
-
-    rfc_seleccionado = rfc_clientes[seleccion - 1]
-
-    notas_cliente = df[df["RFC"] == rfc_seleccionado]
-
-    if notas_cliente.empty:
-        print("No hay notas emitidas para este cliente.")
-    else:
-        promedio_monto = notas_cliente["Monto"].mean()
-        print("Notas del cliente:")
-        print(notas_cliente[["Folio", "Fecha", "Cliente"]])
-        print(f"Monto promedio de notas del cliente: ${round(promedio_monto, 2)}")
-
-# Agregar un cliente
-def agregar_cliente():
-    clave = len(df) + 1
-    nombre = input("Ingrese el nombre completo del cliente: ")
-    rfc = input("Ingrese el RFC del cliente: ")
-    correo = input("Ingrese el correo electrónico del cliente: ")
-
-    # Validar el formato de RFC y correo
-    if not validar_rfc(rfc):
-        print("El RFC ingresado no tiene un formato válido.")
-        return
-
-    if not validar_correo(correo):
-        print("El correo electrónico ingresado no tiene un formato válido.")
-        return
-
-    df.loc[len(df)] = [clave, nombre, rfc, correo]
-    df.to_csv(archivo_csv, index=False)
-    print("Cliente registrado con éxito.")
-
-# Listado de clientes registrados
-def listado_clientes():
-    print(df[["Clave", "Nombre", "RFC", "Correo"]])
-
-# Exportar a CSV
-def exportar_csv():
-    fecha_emision = datetime.now().strftime("%m_%d_%Y")
-    archivo_csv = f"ReporteClientesActivosPorClave_{fecha_emision}.csv"
-    df.to_csv(archivo_csv, index=False)
-    print(f"Archivo CSV guardado como '{archivo_csv}'.")
-
-# Exportar a Excel
-def exportar_excel():
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Clientes Activos"
-
-    # Encabezados
-    ws.append(["Clave", "Nombre", "RFC", "Correo"])
-    for _, row in df.iterrows():
-        ws.append([row["Clave"], row["Nombre"], row["RFC"], row["Correo"]])
-
-    # Guardar el archivo Excel
-    fecha_emision = datetime.now().strftime("%m_%d_%Y")
-    archivo_excel = f"ReporteClientesActivosPorClave_{fecha_emision}.xlsx"
-    wb.save(archivo_excel)
-    print(f"Archivo Excel guardado como '{archivo_excel}'.")
-
-# Opción de exportar
-def exportar_opcion():
-    while True:
-        print("\n===== ¿Desea exportar los datos? =====")
-        print("1. Exportar a CSV")
-        print("2. Exportar a Excel")
-        print("3. No exportar")
-
-        opcion_exportar = input("Seleccione una opción (1/2/3): ")
-
-        if opcion_exportar == "1":
-            exportar_csv()
-            break
-        elif opcion_exportar == "2":
-            exportar_excel()
-            break
-        elif opcion_exportar == "3":
-            break
-        else:
-            print("Opción no válida.")
-
-
-# Menú principal
-while True:
-    print("\n===== Menú Principal =====")
-    print("1. Menú Notas")
-    print("2. Menú Clientes")
-    print("3. Menú Servicios")
-    print("4. Salir")
-
-    opcion_menu = input("Seleccione una opción (1/2/3/4): ")
-
-    if opcion_menu == "1":
-        menu_notas()
-    elif opcion_menu == "2":
-        menu_clientes()
-    elif opcion_menu == "3":
-        menu_servicios()
-    elif opcion_menu == "4":
-        break
-    else:
-        print("Opción no válida.")
-#-----------------------------------------------------
-#Parte de Allan
-# Definir el DataFrame de servicios
-df_servicios = pd.DataFrame({
+            
+            # Definir el DataFrame de servicios
+pd.DataFrame({
     "Clave": ["S1", "S2", "S3"],
     "Nombre": ["Servicio 1", "Servicio 2", "Servicio 3"],
     "Costo": [100.0, 200.0, 300.0]
 })
 
-# Funciones de utilidad
-
+# Función para generar la clave de un servicio
 def generar_clave_servicio():
     return 'S' + str(len(df_servicios) + 1)
 
+# Función para agregar un servicio
 def agregar_servicio():
-    print("\nAgregar un servicio:")
-    while True:
-        nombre = input("Nombre del servicio: ")
-        if not nombre:
-            print("El nombre no puede quedar vacío.")
-            continue
-        costo = input("Costo del servicio: ")
-        if not costo or float(costo) <= 0.00:
-            print("El costo debe ser superior a 0.00.")
-            continue
-        clave = generar_clave_servicio()
-        df_servicios.loc[len(df_servicios)] = [clave, nombre, float(costo)]
-        print(f"Servicio '{nombre}' agregado con éxito (Clave: {clave}).")
-        break
+    nombre = input("Nombre del servicio: ")
+    costo = float(input("Costo del servicio: "))
+    clave = generar_clave_servicio()
+    df_servicios.loc[len(df_servicios)] = [clave, nombre, costo]
+    df_servicios.to_csv(archivo_csv, index=False)
+    print(f"Servicio '{nombre}' agregado con éxito (Clave: {clave}).")
 
+# Función para buscar un servicio por clave
 def buscar_servicio_por_clave():
     clave = input("Ingrese la clave del servicio a buscar: ")
     servicio = df_servicios[df_servicios["Clave"] == clave]
@@ -507,6 +167,7 @@ def buscar_servicio_por_clave():
     else:
         print(servicio)
 
+# Función para buscar un servicio por nombre
 def buscar_servicio_por_nombre():
     nombre = input("Ingrese el nombre del servicio a buscar (ignora mayúsculas/minúsculas): ")
     servicios = df_servicios[df_servicios["Nombre"].str.lower() == nombre.lower()]
@@ -515,14 +176,17 @@ def buscar_servicio_por_nombre():
     else:
         print(servicios)
 
+# Función para listar servicios ordenados por clave
 def listado_de_servicios_ordenado_por_clave():
     servicios = df_servicios.sort_values(by="Clave")
     print(servicios)
 
+# Función para listar servicios ordenados por nombre
 def listado_de_servicios_ordenado_por_nombre():
     servicios = df_servicios.sort_values(by="Nombre")
     print(servicios)
 
+# Función para exportar un reporte de servicios
 def exportar_reporte_servicios(dataframe, ordenado_por, formato):
     fecha_emision = datetime.now().strftime("%m_%d_%Y")
     nombre_archivo = f"ReporteServiciosPor{ordenado_por}_{fecha_emision}.{formato}"
@@ -534,6 +198,7 @@ def exportar_reporte_servicios(dataframe, ordenado_por, formato):
         writer.save()
     print(f"Reporte exportado como '{nombre_archivo}'.")
 
+# Menú Servicios 3.1
 def menu_servicios():
     while True:
         print("\n===== Menú Servicios =====")
@@ -552,6 +217,7 @@ def menu_servicios():
         else:
             print("Opción no válida.")
 
+# Menú Consultas y Reportes de Servicios 3.2
 def menu_consultas_reportes_servicios():
     while True:
         print("\n===== Consultas y Reportes de Servicios =====")
@@ -573,6 +239,8 @@ def menu_consultas_reportes_servicios():
         else:
             print("Opción no válida.")
 
+
+# Menú Listado de Servicios 3.3
 def menu_listado_servicios():
     while True:
         print("\n===== Listado de Servicios =====")
@@ -593,6 +261,7 @@ def menu_listado_servicios():
         else:
             print("Opción no válida.")
 
+# Función para dar la opción de exportar reporte de servicios
 def exportar_opcion_servicios(ordenado_por):
     while True:
         print("\n===== ¿Desea exportar los datos de servicios? =====")
@@ -613,18 +282,32 @@ def exportar_opcion_servicios(ordenado_por):
         else:
             print("Opción no válida.")
 
-# Menú principal
-while True:
-    print("\n===== Menú Principal =====")
-    print("1. Menú Servicios")
-    print("2. Salir")
+# Funciones de registro
+def registrar_nota():
+    # Input de datos
+    cliente = input("Ingrese la clave del cliente: ")
+    detalle = []
+    while True:
+        servicio_clave = input("Ingrese la clave del servicio (o '0' para terminar): ")
+        if servicio_clave == '0':
+            break
+        servicio = obtener_servicio_por_clave(servicio_clave)
+        if servicio:
+            detalle.append(servicio)
+        else:
+            print("Servicio no encontrado. Intente de nuevo.")
 
-    opcion_menu = input("Seleccione una opción (1/2): ")
+    # Calcular monto total
+    monto = calcular_monto(detalle)
 
-    if opcion_menu == "1":
-        menu_servicios()
-    elif opcion_menu == "2":
-        break
-    else:
-        print("Opción no válida.")
+    # Obtener la fecha actual
+    fecha = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Generar un folio único
+    folio = generar_folio()
+
+    # Agregar la nota al DataFrame
+    df_notas.loc[len(df_notas)] = [folio, fecha, cliente, monto, detalle]
+    df_notas.to_csv(archivo_csv, index=False)
+
+    print(f"Nota registrada con éxito (Folio: {folio}).")
