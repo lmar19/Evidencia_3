@@ -311,3 +311,158 @@ def registrar_nota():
     df_notas.to_csv(archivo_csv, index=False)
 
     print(f"Nota registrada con éxito (Folio: {folio}).")
+
+#-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#2.1
+
+# Funciones para registrar, cancelar y recuperar notas
+def registrar_nota():
+    # Mostrar los clientes registrados
+    print("Clientes registrados:")
+    print(df_clientes[["Clave", "Nombre"]])
+
+    # Solicitar la clave del cliente
+    clave_cliente = input("Ingrese la clave del cliente al que se expedirá la nota: ")
+
+    # Verificar que el cliente esté registrado
+    if clave_cliente not in df_clientes["Clave"].values:
+        print("El cliente no está registrado.")
+        return
+
+    # Solicitar los servicios que conformarán la nota
+    detalle = []
+    while True:
+        print("Servicios registrados:")
+        print(df_servicios[["Clave", "Nombre", "Costo"]])
+
+        clave_servicio = input("Ingrese la clave del servicio a añadir a la nota (o 'fin' para finalizar): ")
+        if clave_servicio.lower() == "fin":
+            break
+
+        # Verificar que el servicio esté registrado
+        if clave_servicio not in df_servicios["Clave"].values:
+            print("El servicio no está registrado.")
+            continue
+
+        # Añadir el servicio al detalle de la nota
+        servicio = df_servicios[df_servicios["Clave"] == clave_servicio].iloc[0]
+        detalle.append({"Nombre": servicio["Nombre"], "Costo": servicio["Costo"]})
+
+    # Calcular el monto de la nota
+    monto = sum(item["Costo"] for item in detalle)
+
+    # Generar el folio de la nota
+    folio = len(df_notas) + 1
+
+    # Registrar la nota
+    df_notas.loc[len(df_notas)] = [folio, datetime.now(), clave_cliente, monto, detalle]
+    df_notas.to_csv("notas.csv", index=False)
+
+    print("Nota registrada con éxito.")
+
+
+def cancelar_nota():
+    folio_cancelar = input("Ingrese el folio de la nota a cancelar: ")
+    folio_cancelar = int(folio_cancelar)
+
+    nota = df[df["Folio"] == folio_cancelar]
+
+    if nota.empty:
+        print("La nota no existe o ya está cancelada.")
+    else:
+        print("Datos de la nota a cancelar:")
+        print(nota[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Monto"]])
+        print("Detalle de la nota:")
+        print(nota["Detalle"].iloc[0])
+
+        confirmar = input("¿Está seguro de que desea cancelar esta nota? (S/N): ")
+
+        if confirmar.lower() == "s":
+            # Marcar la nota como cancelada
+            df.loc[df["Folio"] == folio_cancelar, "Fecha"] = None
+            df.to_csv(archivo_csv, index=False)
+            print("Nota cancelada con éxito.")
+        else:
+            print("Operación de cancelación cancelada.")
+
+def recuperar_nota():
+    notas_canceladas = df[df["Fecha"].isna()]
+
+    if notas_canceladas.empty:
+        print("No hay notas canceladas para recuperar.")
+    else:
+        print("Notas canceladas:")
+        print(notas_canceladas[["Folio", "Cliente"]])
+
+        folio_recuperar = input("Ingrese el folio de la nota a recuperar o '0' para cancelar: ")
+        folio_recuperar = int(folio_recuperar)
+
+        if folio_recuperar == 0:
+            print("Operación de recuperación cancelada.")
+        else:
+            nota = notas_canceladas[notas_canceladas["Folio"] == folio_recuperar]
+
+            if nota.empty:
+                print("La nota no existe o no está cancelada.")
+            else:
+                print("Datos de la nota a recuperar:")
+                print(nota[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Monto"]])
+                print("Detalle de la nota:")
+                print(nota["Detalle"].iloc[0])
+
+                confirmar = input("¿Está seguro de que desea recuperar esta nota? (S/N): ")
+
+                if confirmar.lower() == "s":
+                    # Restaurar la fecha de la nota (recuperarla)
+                    df.loc[df["Folio"] == folio_recuperar, "Fecha"] = datetime.now()
+                    df.to_csv(archivo_csv, index=False)
+                    print("Nota recuperada con éxito.")
+                else:
+                    print("Operación de recuperación cancelada.")
+
+# Funciones para consultar notas y clientes
+def consultar_por_periodo():
+    fecha_inicial = input("Ingrese la fecha inicial (dd/mm/YYYY): ")
+    fecha_final = input("Ingrese la fecha final (dd/mm/YYYY): ")
+
+    fecha_inicial = datetime.strptime(fecha_inicial, "%d/%m/%Y")
+    fecha_final = datetime.strptime(fecha_final, "%d/%m/%Y")
+
+    # Validar las fechas
+    if fecha_final < fecha_inicial:
+        print("La fecha final debe ser igual o posterior a la fecha inicial.")
+        return
+
+    notas_periodo = df[(df["Fecha"] >= fecha_inicial) & (df["Fecha"] <= fecha_final)]
+
+    if notas_periodo.empty:
+        print("No hay notas emitidas para el período especificado.")
+    else:
+        promedio_monto = notas_periodo["Monto"].mean()
+        print("Notas del período:")
+        notas_periodo["Detalle"] = notas_periodo["Detalle"].apply(lambda x: ', '.join(f'{i["Nombre"]}: {i["Costo"]}' for i in x))
+        notas_str = notas_periodo[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Detalle", "Monto"]].to_string(index=False)
+        notas_str = notas_str.replace('\n', '\n\t')
+        print("\t" + notas_str)
+        print(f"Monto promedio de notas del período: ${round(promedio_monto, 2)}")
+
+def consultar_por_folio():
+    while True:
+        folio_consulta = input("Ingrese el folio de la nota a consultar: ")
+        try:
+            folio_consulta = int(folio_consulta)
+        except ValueError:
+            print("Folio ingresado no válido. Inténtalo de nuevo.")
+            continue
+
+        nota = df[df["Folio"] == folio_consulta]
+
+        if nota.empty:
+            print("La nota no existe o está cancelada.")
+        else:
+            print("Datos de la nota:")
+            nota["Detalle"] = nota["Detalle"].apply(lambda x: ', '.join(f'{i["Nombre"]}: {i["Costo"]}' for i in x))
+            nota_str = nota[["Folio", "Fecha", "Cliente", "RFC", "Correo", "Detalle", "Monto"]].to_string(index=False)
+            nota_str = nota_str.replace('\n', '\n\t')
+            print("\t" + nota_str)
+            break
